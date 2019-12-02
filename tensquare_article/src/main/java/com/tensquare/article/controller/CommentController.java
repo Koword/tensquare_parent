@@ -125,13 +125,13 @@ public class CommentController {
     public Result thumbup(@PathVariable(value = "id") String id) {
 
         String userId = "chris";
-        Object flag = redisTemplate.boundValueOps("thumbup_userid:" + userId + "_id:" + id);
+        Object flag = redisTemplate.boundValueOps("thumbup_userid:" + userId + "_id:" + id).get();
         if (!StringUtils.isEmpty(flag)) {
             redisTemplate.delete("thumbup_userid:" + userId + "_id:" + id);
-            commentService.thumbup(id);
+            commentService.thumbupReduce(id);
             return new Result(true, StatusCode.OK, "取消点赞");
         }
-        commentService.thumbup(id);
+        commentService.thumbupPlus(id);
         redisTemplate.boundValueOps("thumbup_userid:" + userId + "_id:" + id).set("1");
         return new Result(true, StatusCode.OK, "点赞成功!");
     }

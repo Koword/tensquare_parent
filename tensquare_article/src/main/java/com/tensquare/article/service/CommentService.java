@@ -37,6 +37,7 @@ public class CommentService {
     @Autowired
     RedisTemplate redisTemplate;
 
+
     /**
      * @Author: GaoLeng_Tang 🍭
      * @Description: 新增
@@ -117,39 +118,37 @@ public class CommentService {
      * @Param * @param id
      * @Return: void
      */
-    public void thumbup(String id) {
-
-        String userId = "chris";
+    public void thumbupPlus(String id) {
 
         // 更新的条件
         Query query = new Query();
         query.addCriteria(Criteria.where("_id").is(id));
 
-
-        // 1.查询redis中此用户是否对此评论点过赞
-        Object flag = redisTemplate.boundValueOps("thumbup_userid:" + userId + "_id:" + id);
-        if (!StringUtils.isEmpty(flag)) {
-            // 2.1已经点赞，就取消点赞
-            // 更新的值
-            Update updateReduce = new Update();
-            updateReduce.inc("thumbup", -1);
-            mongoTemplate.updateFirst(query, updateReduce, "comment");
-
-            /*// 3.1将此点赞记录从redis中删除
-            redisTemplate.delete("thumbup_userid:" + userId + "_id:" + id);*/
-        } else {
-            // 2.1没有点赞，就执行点赞
-            // 更新的值
-            Update updatePlus = new Update();
-            updatePlus.inc("thumbup", 1);
-            mongoTemplate.updateFirst(query, updatePlus, "comment");
-
-           /* // 3.1将此点赞记录写入redis中
-            redisTemplate.boundValueOps("thumbup_userid:" + userId + "_id:" + id).set("1");*/
-
-        }
-
+        // 没有点赞，就点赞
+        // 更新的值
+        Update updatePlus = new Update();
+        updatePlus.inc("thumbup", 1);
+        mongoTemplate.updateFirst(query, updatePlus, "comment");
     }
 
 
+    /**
+     * @Author: GaoLeng_Tang 🍭
+     * @Description: 取消点赞
+     * @Date: 2019-12-1 0001 23:30
+     * @Param * @param id
+     * @Return: void
+     */
+    public void thumbupReduce(String id) {
+
+        // 更新的条件
+        Query query = new Query();
+        query.addCriteria(Criteria.where("_id").is(id));
+
+        // 已经点赞，就取消点赞
+        // 更新的值
+        Update updateReduce = new Update();
+        updateReduce.inc("thumbup", -1);
+        mongoTemplate.updateFirst(query, updateReduce, "comment");
+    }
 }
