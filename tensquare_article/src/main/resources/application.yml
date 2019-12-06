@@ -3,17 +3,18 @@ server:
 spring:
   application:
     name: tensquare-article #服务名称
+
   datasource: # 数据库连接四个属性
     driver-class-name: com.mysql.jdbc.Driver
-    url: jdbc:mysql://192.168.188.128:3306/tensquare_article?characterEncoding=utf-8
+    url: jdbc:mysql://192.168.170.130:3306/tensquare_article?characterEncoding=utf-8
     username: root
     password: 123456
   data:
     mongodb:
       database: commentdb
-      host: 192.168.188.128
+      host: 192.168.170.130
   redis:
-    host: 192.168.188.128
+    host: 192.168.170.130
 # Mybatis-Plus 配置
 mybatis-plus:
   #  mapper-locations: classpath:/mapper/*Mapper.xml
@@ -29,3 +30,9 @@ mybatis-plus:
       lazyLoadingEnabled: true #延时加载的开关
       multipleResultSetsEnabled: true #开启延时加载，否则按需加载属性
       log-impl: org.apache.ibatis.logging.stdout.StdOutImpl #打印sql语句,调试用
+eureka: #使用eureka注册中心
+  client:
+    service-url:
+      defaultZone: http://127.0.0.1:6868/eureka/
+  instance:
+    prefer-ip-address: true
