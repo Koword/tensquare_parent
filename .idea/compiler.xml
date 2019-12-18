@@ -11,6 +11,7 @@
         <module name="tensquare_common" />
         <module name="tensquare_encrypt" />
         <module name="tensquare_eureka" />
+        <module name="tensquare_notice" />
         <module name="tensquare_user" />
       </profile>
     </annotationProcessing>
@@ -19,6 +20,7 @@
       <module name="tensquare_common" target="1.8" />
       <module name="tensquare_encrypt" target="1.8" />
       <module name="tensquare_eureka" target="1.8" />
+      <module name="tensquare_notice" target="1.8" />
       <module name="tensquare_parent" target="1.8" />
       <module name="tensquare_user" target="1.8" />
     </bytecodeTargetLevel>
