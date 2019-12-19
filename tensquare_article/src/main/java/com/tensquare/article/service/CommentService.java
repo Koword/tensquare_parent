@@ -3,19 +3,15 @@ package com.tensquare.article.service;
 import com.tensquare.article.pojo.Comment;
 import com.tensquare.article.repository.CommentRepository;
 import com.tensquare.util.IdWorker;
+import java.util.Date;
+import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
-import org.springframework.data.redis.core.BoundValueOperations;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
-import org.springframework.util.StringUtils;
-import org.springframework.web.bind.annotation.RequestMapping;
-
-import java.util.Date;
-import java.util.List;
 
 /**
  * @Description
@@ -113,7 +109,7 @@ public class CommentService {
 
     /**
      * @Author: GaoLeng_Tang 🍭
-     * @Description: 点赞
+     * @Description: 评论点赞
      * @Date: 2019-12-1 0001 23:30
      * @Param * @param id
      * @Return: void
@@ -134,7 +130,7 @@ public class CommentService {
 
     /**
      * @Author: GaoLeng_Tang 🍭
-     * @Description: 取消点赞
+     * @Description: 评论取消点赞
      * @Date: 2019-12-1 0001 23:30
      * @Param * @param id
      * @Return: void

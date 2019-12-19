@@ -1,19 +1,27 @@
 package com.tensquare.article.controller;
 
+import static org.springframework.web.bind.annotation.RequestMethod.DELETE;
+import static org.springframework.web.bind.annotation.RequestMethod.GET;
+import static org.springframework.web.bind.annotation.RequestMethod.POST;
+import static org.springframework.web.bind.annotation.RequestMethod.PUT;
+
 import com.baomidou.mybatisplus.plugins.Page;
 import com.tensquare.article.pojo.Article;
 import com.tensquare.article.service.ArticleService;
 import com.tensquare.entity.PageResult;
 import com.tensquare.entity.Result;
 import com.tensquare.entity.StatusCode;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.web.bind.annotation.*;
-
 import java.util.List;
 import java.util.Map;
-
-import static org.springframework.web.bind.annotation.RequestMethod.*;
+import lombok.AllArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.util.StringUtils;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 /**
  * @Description
@@ -23,10 +31,13 @@ import static org.springframework.web.bind.annotation.RequestMethod.*;
 @RestController
 @RequestMapping("/article")
 @CrossOrigin
+@AllArgsConstructor
 public class ArticleController {
 
     @Autowired
     private ArticleService articleService;
+
+    RedisTemplate redisTemplate;
 
 
     /**
@@ -69,7 +80,6 @@ public class ArticleController {
     }
 
     /**
-     * @param articleId
      * @Author: GaoLeng_Tang 🍭
      * @Description: 更新
      * @Date: 2019-11-25 0025 0:35
@@ -98,12 +108,67 @@ public class ArticleController {
         return new Result(true, StatusCode.OK, "删除文章成功!");
     }
 
+
+    /**
+     * @Description 分页查询
+     * @Author tangkai
+     * @Date 14:38 2019/12/19
+     * @Param [map, page, size]
+     * @Return com.tensquare.entity.Result
+     **/
     @RequestMapping(value = "/search/{page}/{size}", method = POST)
     public Result search(@RequestBody Map map,
-                         @PathVariable(value = "page") int page,
-                         @PathVariable(value = "size") int size) {
+        @PathVariable(value = "page") int page,
+        @PathVariable(value = "size") int size) {
         Page<Article> pageList = articleService.search(map, page, size);
         PageResult pageResult = new PageResult(pageList.getTotal(), pageList.getRecords());
         return new Result(true, StatusCode.OK, "分页查询成功!", pageResult);
     }
+
+
+    /**
+     * @Description 订阅
+     * @Author tangkai
+     * @Date 14:56 2019/12/19
+     * @Param [map]
+     * @Return com.tensquare.entity.Result
+     **/
+    @RequestMapping(value = "/subscribe", method = POST)
+    public Result subscribe(@RequestBody Map map) {
+        String articleId = (String) map.get("articleId");
+        String userId = (String) map.get("userId");
+        boolean flag = articleService.subscribe(userId, articleId);
+
+        if (flag) {
+            return new Result(true, StatusCode.OK, "订阅成功!");
+        }
+        return new Result(true, StatusCode.OK, "取消订阅成功!");
+
+    }
+
+
+    /**
+     * @Description 文章点赞
+     * @Author tangKai
+     * @Date 16:18 2019/12/19
+     * @Param [articleId]
+     * @Return com.tensquare.entity.Result
+     **/
+    @RequestMapping(value = "/thumbup/{articleId}", method = PUT)
+    public Result thumbup(@PathVariable(value = "articleId") String articleId) {
+        String userId = "1";
+        Object flag = redisTemplate.opsForValue().get("article_thumbup_userId:" + userId + "_articleId:" + articleId);
+        if (!StringUtils.isEmpty(flag)) {
+            // 取消点赞
+            redisTemplate.delete("article_thumbup_userId:" + userId + "_articleId:" + articleId);
+            articleService.thumbupReduce(articleId, userId);
+            return new Result(true, StatusCode.OK, "取消点赞成功!");
+        }
+        articleService.thumbupPlus(articleId, userId);
+        redisTemplate.opsForValue().set("article_thumbup_userId:" + userId + "_articleId:" + articleId,"1");
+
+        return new Result(true,StatusCode.OK,"点赞成功!");
+    }
+
+
 }

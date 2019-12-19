@@ -2,17 +2,21 @@ package com.tensquare.article.service;
 
 import com.baomidou.mybatisplus.mapper.EntityWrapper;
 import com.baomidou.mybatisplus.plugins.Page;
+import com.tensquare.article.client.NoticeClient;
 import com.tensquare.article.dao.ArticleMapper;
 import com.tensquare.article.pojo.Article;
+import com.tensquare.article.pojo.Notice;
 import com.tensquare.util.IdWorker;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.StringUtils;
-
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import lombok.AllArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 /**
  * @Description
@@ -21,13 +25,17 @@ import java.util.Map;
  **/
 @Transactional(rollbackFor = Exception.class)
 @Service
+@AllArgsConstructor
 public class ArticleService {
 
-    @Autowired
-    private ArticleMapper articleMapper;
+    ArticleMapper articleMapper;
+
+    IdWorker idWorker;
+
+    RedisTemplate redisTemplate;
 
     @Autowired
-    IdWorker idWorker;
+    NoticeClient noticeClient;
 
     /**
      * @Author: GaoLeng_Tang 🍭
@@ -61,13 +69,35 @@ public class ArticleService {
      * @Return: void
      */
     public void insert(Article article) {
+
+        // 1.新增文章
+        String authorId = "1";
+
         article.setId(idWorker.nextId() + "");
         article.setCreatetime(new Date());
         article.setIspublic("1");
-        article.setVisits(0);
-        article.setThumbup(0);
-        article.setComment(0);
+        article.setVisits(0);           // 浏览量
+        article.setThumbup(0);          // 点赞数
+        article.setComment(0);          // 评论数
         article.setState("0");
+
+        // 通知
+        Set<String> members = redisTemplate.opsForSet().members("article_author_" + authorId);
+
+        for (String uid : members) {
+            // 消息通知
+            Notice notice = new Notice();
+            notice.setReceiverId(uid);
+            notice.setOperatorId(authorId);
+            notice.setAction("publish");
+            notice.setTargetType("article");
+            notice.setTargetId(article.getId());
+            notice.setCreatetime(new Date());
+            notice.setType("sys");
+            notice.setState("0");
+            noticeClient.add(notice);
+        }
+
         articleMapper.insert(article);
     }
 
@@ -98,6 +128,14 @@ public class ArticleService {
         articleMapper.deleteById(articleId);
     }
 
+
+    /**
+     * @Description 分页查询
+     * @Author tangkai
+     * @Date 14:38 2019/12/19
+     * @Param [map, page, size]
+     * @Return com.tensquare.entity.Result
+     **/
     public Page<Article> search(Map map, int page, int size) {
         // 1.封装分页条件
         Page<Article> pageList = new Page<>(page, size);
@@ -121,4 +159,81 @@ public class ArticleService {
         List<Article> articleList = articleMapper.selectPage(pageList, entityWrapper);
         return pageList.setRecords(articleList);
     }
+
+
+    /**
+     * @Description 订阅
+     * @Author tangKai
+     * @Date 14:01 2019/12/19
+     * @Param [articleId, userId]
+     * @Return boolean
+     **/
+    public boolean subscribe(String articleId, String userId) {
+        // 根据文章id查询文章作者authorId
+        String authorId = articleMapper.selectById(articleId).getUserid();
+
+        // 用户key=userKey value=作者集合
+        String userKey = "article_user_" + userId;
+
+        // 作者key=authorKey value=用户集合
+        String authorKey = "article_author_" + authorId;
+
+        // 判断用户是否已经关注作者
+        Boolean isMember = redisTemplate.opsForSet().isMember(userKey, authorId);
+        if (isMember) {
+            // 取消关注
+            redisTemplate.opsForSet().remove(userKey, authorId);
+            redisTemplate.opsForSet().remove(authorKey, userId);
+            return false;
+        } else {
+            // 产生订阅关系
+            redisTemplate.opsForSet().add(userKey, authorId);
+            redisTemplate.opsForSet().add(authorKey, userId);
+            return true;
+        }
+
+    }
+
+
+    /**
+     * @Description 文章点赞
+     * @Author tangKai
+     * @Date 15:59 2019/12/19
+     * @Param [articleId, userId]
+     * @Return void
+     **/
+    public void thumbupPlus(String articleId, String userId) {
+        Article article = articleMapper.selectById(articleId);
+        article.setThumbup(article.getThumbup() + 1);
+        articleMapper.updateById(article);
+
+        // 消息通知
+        Notice notice = new Notice();
+        notice.setReceiverId(article.getUserid());
+        notice.setOperatorId(userId);
+        notice.setAction("thumbup");
+        notice.setTargetType("article");
+        notice.setTargetId(articleId);
+        notice.setCreatetime(new Date());
+        notice.setType("user");
+        notice.setState("0");
+
+        noticeClient.add(notice);
+    }
+
+
+    /**
+     * @Description 文章取消点赞
+     * @Author tangKai
+     * @Date 16:00 2019/12/19
+     * @Param [articleId, userId]
+     * @Return void
+     **/
+    public void thumbupReduce(String articleId, String userId) {
+        Article article = articleMapper.selectById(articleId);
+        article.setThumbup(article.getThumbup() - 1);
+        articleMapper.updateById(article);
+    }
+
+
 }
