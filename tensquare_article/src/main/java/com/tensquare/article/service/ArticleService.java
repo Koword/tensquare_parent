@@ -3,6 +3,7 @@ package com.tensquare.article.service;
 import com.baomidou.mybatisplus.mapper.EntityWrapper;
 import com.baomidou.mybatisplus.plugins.Page;
 import com.tensquare.article.client.NoticeClient;
+import com.tensquare.article.config.RabbitmqConfig;
 import com.tensquare.article.dao.ArticleMapper;
 import com.tensquare.article.pojo.Article;
 import com.tensquare.article.pojo.Notice;
@@ -12,7 +13,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import lombok.AllArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.amqp.core.Binding;
+import org.springframework.amqp.core.BindingBuilder;
+import org.springframework.amqp.core.DirectExchange;
+import org.springframework.amqp.core.Queue;
+import org.springframework.amqp.rabbit.core.RabbitAdmin;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -34,8 +40,15 @@ public class ArticleService {
 
     RedisTemplate redisTemplate;
 
-    @Autowired
     NoticeClient noticeClient;
+
+//    NoticeFreshClient noticeFreshClient;
+
+    RabbitTemplate rabbitTemplate;
+
+    DirectExchange directExchange;
+
+    RabbitAdmin rabbitAdmin;
 
     /**
      * @Author: GaoLeng_Tang 🍭
@@ -99,6 +112,10 @@ public class ArticleService {
         }
 
         articleMapper.insert(article);
+
+        // 入库成功后，发送mq消息，内容是消息通知id
+        rabbitTemplate.convertAndSend(RabbitmqConfig.EX_ARTICLE,authorId,article.getId());
+
     }
 
     /**
@@ -178,61 +195,80 @@ public class ArticleService {
         // 作者key=authorKey value=用户集合
         String authorKey = "article_author_" + authorId;
 
+        // 创建queue , durable:是否开启持久化
+        Queue queue = new Queue("", true);
+        // 声明exchange的queue的绑定关系，设置路由键为作者id
+        Binding binding = BindingBuilder.bind(queue).to(directExchange).with(authorId);
+
         // 判断用户是否已经关注作者
         Boolean isMember = redisTemplate.opsForSet().isMember(userKey, authorId);
         if (isMember) {
             // 取消关注
             redisTemplate.opsForSet().remove(userKey, authorId);
             redisTemplate.opsForSet().remove(authorKey, userId);
+
+            // 进行解绑
+            rabbitAdmin.removeBinding(binding);
             return false;
         } else {
             // 产生订阅关系
             redisTemplate.opsForSet().add(userKey, authorId);
             redisTemplate.opsForSet().add(authorKey, userId);
+
+            // 进行绑定
+            rabbitAdmin.declareQueue(queue);
+            rabbitAdmin.declareBinding(binding);
             return true;
         }
-
     }
 
 
     /**
      * @Description 文章点赞
      * @Author tangKai
-     * @Date 15:59 2019/12/19
-     * @Param [articleId, userId]
-     * @Return void
-     **/
-    public void thumbupPlus(String articleId, String userId) {
-        Article article = articleMapper.selectById(articleId);
-        article.setThumbup(article.getThumbup() + 1);
-        articleMapper.updateById(article);
-
-        // 消息通知
-        Notice notice = new Notice();
-        notice.setReceiverId(article.getUserid());
-        notice.setOperatorId(userId);
-        notice.setAction("thumbup");
-        notice.setTargetType("article");
-        notice.setTargetId(articleId);
-        notice.setCreatetime(new Date());
-        notice.setType("user");
-        notice.setState("0");
-
-        noticeClient.add(notice);
-    }
-
-
-    /**
-     * @Description 文章取消点赞
-     * @Author tangKai
      * @Date 16:00 2019/12/19
      * @Param [articleId, userId]
      * @Return void
      **/
-    public void thumbupReduce(String articleId, String userId) {
-        Article article = articleMapper.selectById(articleId);
-        article.setThumbup(article.getThumbup() - 1);
-        articleMapper.updateById(article);
+    public boolean thumbup(String articleId, String userId) {
+
+        Object flag = redisTemplate.opsForValue().get("article_thumbup_userId:" + userId + "_articleId:" + articleId);
+        if (StringUtils.isEmpty(flag)) {
+            // 点赞
+            Article article = articleMapper.selectById(articleId);
+            article.setThumbup(article.getThumbup() + 1);
+            articleMapper.updateById(article);
+
+            // 消息通知
+            Notice notice = new Notice();
+            notice.setReceiverId(article.getUserid());
+            notice.setOperatorId(userId);
+            notice.setAction("thumbup");
+            notice.setTargetType("article");
+            notice.setTargetId(articleId);
+            notice.setCreatetime(new Date());
+            notice.setType("user");
+            notice.setState("0");
+
+            noticeClient.add(notice);
+            // 设置点赞记录
+            redisTemplate.opsForValue().set("article_thumbup_userId:" + userId + "_articleId:" + articleId, "1");
+
+            return true;
+        } else {
+            // 取消点赞
+            Article article = articleMapper.selectById(articleId);
+            article.setThumbup(article.getThumbup() - 1);
+            articleMapper.updateById(article);
+
+            // 删除待通知消息
+            //noticeClient.freshDelete(noticeFresh);
+
+            // 删除点赞记录
+            redisTemplate.delete("article_thumbup_userId:" + userId + "_articleId:" + articleId);
+            return false;
+        }
+
     }
 
 

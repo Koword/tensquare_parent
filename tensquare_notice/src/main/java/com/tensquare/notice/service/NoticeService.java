@@ -46,7 +46,6 @@ public class NoticeService {
      * @Return com.tensquare.entity.Result
      **/
     public Notice findById(String id) {
-
         Notice notice = noticeDao.selectById(id);
         getNoticeInfo(notice);
         return notice;
@@ -60,6 +59,7 @@ public class NoticeService {
      * @Param [notice]
      * @Return com.tensquare.entity.Result
      **/
+    @Transactional(rollbackFor = Exception.class)
     public void add(Notice notice) {
         String id = idWorker.nextId() + "";
 
@@ -70,12 +70,10 @@ public class NoticeService {
         noticeDao.insert(notice);
 
         // 2.待推送消息入库，新消息提醒
-        NoticeFresh noticeFresh = new NoticeFresh();
-        // 设置消息id
-        noticeFresh.setNoticeId(id);
-        // 待通知用户的id
-        noticeFresh.setUserId(notice.getReceiverId());
-        noticeFreshDao.insert(noticeFresh);
+        // NoticeFresh noticeFresh = new NoticeFresh();
+        // noticeFresh.setNoticeId(id);
+        // noticeFresh.setUserId(notice.getReceiverId());
+        // noticeFreshDao.insert(noticeFresh);
 
     }
 
@@ -88,13 +86,17 @@ public class NoticeService {
      * @Return com.baomidou.mybatisplus.plugins.Page<com.tensquare.notice.pojo.Notice>
      **/
     public Page<Notice> findPage(int page, int size) {
+        // 分页条件：第几页，每页几条
         Page<Notice> pageList = new Page<>(page, size);
+        // 根据查询条件和包装实体记录
         List<Notice> list = noticeDao.selectPage(pageList, new EntityWrapper<Notice>());
 
         for (Notice notice : list) {
-            getNoticeInfo(notice);
+            this.getNoticeInfo(notice);
+
         }
 
+        // 设置记录数
         pageList.setRecords(list);
         return pageList;
     }

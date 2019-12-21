@@ -14,9 +14,7 @@ import com.tensquare.entity.StatusCode;
 import java.util.List;
 import java.util.Map;
 import lombok.AllArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -34,8 +32,8 @@ import org.springframework.web.bind.annotation.RestController;
 @AllArgsConstructor
 public class ArticleController {
 
-    @Autowired
-    private ArticleService articleService;
+
+    ArticleService articleService;
 
     RedisTemplate redisTemplate;
 
@@ -137,7 +135,7 @@ public class ArticleController {
     public Result subscribe(@RequestBody Map map) {
         String articleId = (String) map.get("articleId");
         String userId = (String) map.get("userId");
-        boolean flag = articleService.subscribe(userId, articleId);
+        boolean flag = articleService.subscribe(articleId, userId);
 
         if (flag) {
             return new Result(true, StatusCode.OK, "订阅成功!");
@@ -157,17 +155,13 @@ public class ArticleController {
     @RequestMapping(value = "/thumbup/{articleId}", method = PUT)
     public Result thumbup(@PathVariable(value = "articleId") String articleId) {
         String userId = "1";
-        Object flag = redisTemplate.opsForValue().get("article_thumbup_userId:" + userId + "_articleId:" + articleId);
-        if (!StringUtils.isEmpty(flag)) {
-            // 取消点赞
-            redisTemplate.delete("article_thumbup_userId:" + userId + "_articleId:" + articleId);
-            articleService.thumbupReduce(articleId, userId);
-            return new Result(true, StatusCode.OK, "取消点赞成功!");
+        boolean flag = articleService.thumbup(articleId, userId);
+        if (flag) {
+            // 点赞成功
+            return new Result(true, StatusCode.OK, "点赞成功!");
         }
-        articleService.thumbupPlus(articleId, userId);
-        redisTemplate.opsForValue().set("article_thumbup_userId:" + userId + "_articleId:" + articleId,"1");
-
-        return new Result(true,StatusCode.OK,"点赞成功!");
+        // 取消点赞
+        return new Result(true, StatusCode.OK, "取消点赞成功!");
     }
 
 

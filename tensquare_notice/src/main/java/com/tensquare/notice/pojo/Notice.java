@@ -26,7 +26,7 @@ public class Notice implements Serializable {
     @TableField(exist = false)
     private String operatorName;//进行操作的用户昵称
     private String action;//操作类型（评论，点赞等）
-    private String targetType;//对象类型（评论，点赞等）
+    private String targetType;//对象类型（评论，文章等）
 
     @TableField(exist = false)
     private String targetName;//对象名称或简介

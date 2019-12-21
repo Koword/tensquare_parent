@@ -13,6 +13,7 @@ import com.tensquare.notice.pojo.Notice;
 import com.tensquare.notice.pojo.NoticeFresh;
 import com.tensquare.notice.service.NoticeService;
 import lombok.AllArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -30,6 +31,7 @@ import org.springframework.web.bind.annotation.RestController;
 @AllArgsConstructor
 public class NoticeController {
 
+    @Autowired
     NoticeService noticeService;
 
 
@@ -70,7 +72,7 @@ public class NoticeController {
     public Result findPage(@PathVariable(value = "page") int page,
         @PathVariable(value = "size") int size) {
         Page<Notice> pageList = noticeService.findPage(page, size);
-        PageResult pageResult = new PageResult<>(pageList.getTotal(), pageList.getRecords());
+        PageResult<Notice> pageResult = new PageResult<>(pageList.getTotal(), pageList.getRecords());
 
         return new Result(true, StatusCode.OK, "分页查询成功!", pageResult);
     }
