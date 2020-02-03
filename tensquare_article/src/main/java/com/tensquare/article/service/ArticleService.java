@@ -8,10 +8,6 @@ import com.tensquare.article.dao.ArticleMapper;
 import com.tensquare.article.pojo.Article;
 import com.tensquare.article.pojo.Notice;
 import com.tensquare.util.IdWorker;
-import java.util.Date;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
 import lombok.AllArgsConstructor;
 import org.springframework.amqp.core.Binding;
 import org.springframework.amqp.core.BindingBuilder;
@@ -24,6 +20,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.util.Date;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
 /**
  * @Description
  * @Author GaoLeng_Tang 🍭
@@ -35,19 +36,12 @@ import org.springframework.util.StringUtils;
 public class ArticleService {
 
     ArticleMapper articleMapper;
-
     IdWorker idWorker;
-
     RedisTemplate redisTemplate;
-
     NoticeClient noticeClient;
-
-//    NoticeFreshClient noticeFreshClient;
-
+    //    NoticeFreshClient noticeFreshClient;
     RabbitTemplate rabbitTemplate;
-
     DirectExchange directExchange;
-
     RabbitAdmin rabbitAdmin;
 
     /**
@@ -114,7 +108,8 @@ public class ArticleService {
         articleMapper.insert(article);
 
         // 入库成功后，发送mq消息，内容是消息通知id
-        rabbitTemplate.convertAndSend(RabbitmqConfig.EX_ARTICLE,authorId,article.getId());
+        // arg0：交换机名称   arg1：routingKey     arg2：随意
+        rabbitTemplate.convertAndSend(RabbitmqConfig.EX_ARTICLE, authorId, article.getId());
 
     }
 
@@ -195,13 +190,15 @@ public class ArticleService {
         // 作者key=authorKey value=用户集合
         String authorKey = "article_author_" + authorId;
 
-        // 创建queue , durable:是否开启持久化
-        Queue queue = new Queue("", true);
-        // 声明exchange的queue的绑定关系，设置路由键为作者id
-        Binding binding = BindingBuilder.bind(queue).to(directExchange).with(authorId);
 
         // 判断用户是否已经关注作者
         Boolean isMember = redisTemplate.opsForSet().isMember(userKey, authorId);
+
+        // 让当前用户的消息队列 关注 routingKey(作者id) true:持久化
+        Queue queue = new Queue("article_subscribe_" + userId, true);
+        // 声明exchange的queue的绑定关系，设置路由键为作者id
+        Binding binding = BindingBuilder.bind(queue).to(directExchange).with(authorId);
+
         if (isMember) {
             // 取消关注
             redisTemplate.opsForSet().remove(userKey, authorId);
@@ -254,6 +251,13 @@ public class ArticleService {
             // 设置点赞记录
             redisTemplate.opsForValue().set("article_thumbup_userId:" + userId + "_articleId:" + articleId, "1");
 
+            // 1 创建队列，每个用户都有自己的队列，通过用户id进行区分
+            Queue queue = new Queue("article_thumbup_" + article.getUserid(), true);
+            rabbitAdmin.declareQueue(queue);
+
+            // 2 发送消息
+            rabbitTemplate.convertAndSend("article_thumbup_" + article.getUserid(), articleId);
+
             return true;
         } else {
             // 取消点赞
@@ -266,6 +270,9 @@ public class ArticleService {
 
             // 删除点赞记录
             redisTemplate.delete("article_thumbup_userId:" + userId + "_articleId:" + articleId);
+
+
+
             return false;
         }
 

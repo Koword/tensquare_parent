@@ -1,25 +1,19 @@
 package com.tensquare.article.controller;
 
-import static org.springframework.web.bind.annotation.RequestMethod.DELETE;
-import static org.springframework.web.bind.annotation.RequestMethod.GET;
-import static org.springframework.web.bind.annotation.RequestMethod.POST;
-import static org.springframework.web.bind.annotation.RequestMethod.PUT;
-
 import com.baomidou.mybatisplus.plugins.Page;
 import com.tensquare.article.pojo.Article;
 import com.tensquare.article.service.ArticleService;
 import com.tensquare.entity.PageResult;
 import com.tensquare.entity.Result;
 import com.tensquare.entity.StatusCode;
-import java.util.List;
-import java.util.Map;
 import lombok.AllArgsConstructor;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.web.bind.annotation.CrossOrigin;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.Map;
+
+import static org.springframework.web.bind.annotation.RequestMethod.*;
 
 /**
  * @Description
@@ -131,7 +125,7 @@ public class ArticleController {
      * @Param [map]
      * @Return com.tensquare.entity.Result
      **/
-    @RequestMapping(value = "/subscribe", method = POST)
+    @PostMapping(value = "/subscribe",consumes = "application/json")
     public Result subscribe(@RequestBody Map map) {
         String articleId = (String) map.get("articleId");
         String userId = (String) map.get("userId");
@@ -152,9 +146,10 @@ public class ArticleController {
      * @Param [articleId]
      * @Return com.tensquare.entity.Result
      **/
-    @RequestMapping(value = "/thumbup/{articleId}", method = PUT)
-    public Result thumbup(@PathVariable(value = "articleId") String articleId) {
-        String userId = "1";
+    @RequestMapping(value = "/thumbup/{articleId}/{userId}", method = PUT)
+    public Result thumbup(@PathVariable(value = "articleId") String articleId,
+                          @PathVariable(value = "userId") String userId) {
+
         boolean flag = articleService.thumbup(articleId, userId);
         if (flag) {
             // 点赞成功

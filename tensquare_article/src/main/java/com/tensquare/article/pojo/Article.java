@@ -21,9 +21,9 @@ public class Article {
     private String id;//ID
 
     private String columnid;    //专栏ID
-    private String userid;      //用户ID
+    private String userid;      //用户ID---作者
     private String title;       //标题
-    private String content;     //文章正文
+        private String content;     //文章正文
     private String image;       //文章封面
     private Date createtime;    //发表日期
     private Date updatetime;    //修改日期

@@ -8,6 +8,7 @@
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
         <module name="netty-demo" />
+        <module name="sentinelDemo" />
         <module name="tensquare_article" />
         <module name="tensquare_common" />
         <module name="tensquare_encrypt" />
@@ -18,6 +19,7 @@
     </annotationProcessing>
     <bytecodeTargetLevel>
       <module name="netty-demo" target="1.8" />
+      <module name="sentinelDemo" target="1.8" />
       <module name="tensquare_article" target="1.8" />
       <module name="tensquare_common" target="1.8" />
       <module name="tensquare_encrypt" target="1.8" />
